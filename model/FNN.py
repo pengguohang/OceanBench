@@ -1,5 +1,6 @@
 from torch import nn
-
+import torch.nn.functional as F
+import torch
 
 class FFNN(nn.Module):
     def __init__(self, input_dim, output_dim, n_units1, n_units2, dropout_fraction, activ):
@@ -24,3 +25,29 @@ class FFNN(nn.Module):
         
         x = self.fc3(x)
         return x
+        
+    def train_one_step(self, x, y, mask, criterion, k):
+        '''
+        x:      [bs, var, lat, lon]
+        y:      [bs, depth, lat, lon]
+        mask:   [1, lat, lon]
+        pred:   [bs, -1]
+
+        return: loss
+        '''
+        # process data
+        info = {}
+        bs_1 = x.shape[0]
+        bs_2, depth, lat, lon = y.shape
+        x = x.reshape(bs_1, -1)  # (bs, n)
+        y = y[:, 0:k, ...]
+        mask = mask.unsqueeze(0).repeat(bs_2 ,k, 1, 1)  # (1, lat, lon) --> (bs, depth, lat, lon)
+        y = y*mask
+        
+        pred = self(x)  # (bs, n)
+        
+        pred = pred.reshape(bs_2, k, lat, lon)
+        pred = pred * mask
+        loss = criterion(pred, y)
+
+        return loss, pred, info

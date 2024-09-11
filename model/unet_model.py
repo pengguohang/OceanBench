@@ -1,6 +1,6 @@
 """ Full assembly of the parts to form the complete network """
 
-from unet_parts import *
+from .unet_parts import *
 
 
 class UNet(nn.Module):
@@ -25,23 +25,23 @@ class UNet(nn.Module):
 
     def forward(self, x):
         x1 = self.inc(x)
-        print(f'x1.shape = {x1.size()}')
+        # print(f'x1.shape = {x1.size()}')
         x2 = self.down1(x1)
-        print(f'x2.shape = {x2.size()}')
+        # print(f'x2.shape = {x2.size()}')
         x3 = self.down2(x2)
-        print(f'x3.shape = {x3.size()}')
+        # print(f'x3.shape = {x3.size()}')
         x4 = self.down3(x3)
-        print(f'x4.shape = {x4.size()}')
+        # print(f'x4.shape = {x4.size()}')
         x5 = self.down4(x4)
-        print(f'x5.shape = {x5.size()}')
+        # print(f'x5.shape = {x5.size()}')
         x = self.up1(x5, x4)
-        print(f'up1_x.shape = {x.size()}')
+        # print(f'up1_x.shape = {x.size()}')
         x = self.up2(x, x3)
-        print(f'up2_x.shape = {x.size()}')
+        # print(f'up2_x.shape = {x.size()}')
         x = self.up3(x, x2)
-        print(f'up3_x.shape = {x.size()}')
+        # print(f'up3_x.shape = {x.size()}')
         x = self.up4(x, x1)
-        print(f'up4_x.shape = {x.size()}')
+        # print(f'up4_x.shape = {x.size()}')
         logits = self.outc(x)
         return logits
 
@@ -57,3 +57,37 @@ class UNet(nn.Module):
         self.up3 = torch.utils.checkpoint(self.up3)
         self.up4 = torch.utils.checkpoint(self.up4)
         self.outc = torch.utils.checkpoint(self.outc)
+
+    def train_one_step(self, x, y, mask, criterion, k):
+        '''
+        x:      [bs, var, lat, lon]
+        y:      [bs, depth, lat, lon]
+        mask:   [1, lat, lon]
+        pred:   [bs, var, lat, lon]
+
+        return: loss
+        '''
+        # process data
+        info = {}
+        bs_2 = y.shape[0]
+        y = y[:, 0:k, ...]
+        mask = mask.unsqueeze(0).repeat(bs_2 ,k, 1, 1)  # (1, lat, lon) --> (bs, depth, lat, lon)
+        y = y*mask
+        
+        pred = self(x)  # (bs, )
+        
+        pred = pred * mask
+        loss = criterion(pred, y)
+
+        return loss, pred, info
+
+        
+# x1.shape = torch.Size([1, 32, 108, 200])
+# x2.shape = torch.Size([1, 64, 54, 100])
+# x3.shape = torch.Size([1, 128, 27, 50])
+# x4.shape = torch.Size([1, 256, 14, 25])
+# x5.shape = torch.Size([1, 512, 7, 13])
+# up1_x.shape = torch.Size([1, 256, 14, 25])
+# up2_x.shape = torch.Size([1, 128, 27, 50])
+# up3_x.shape = torch.Size([1, 64, 54, 100])
+# up4_x.shape = torch.Size([1, 32, 108, 200])

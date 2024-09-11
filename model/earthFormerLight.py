@@ -426,7 +426,12 @@ class PositionwiseFFN(nn.Module):
         return out
 
 class PatchMerging3D(nn.Module):
-    """ Patch Merging Layer"""
+    """ 
+    Patch Merging Layer
+    
+    PatchMerging3D 是一个用于三维数据的 patch 合并层，它通过将输入张量分割成小的 patch，并将这些 patch 合并到一个新的特征空间中来实现降采样。
+    它在处理高维数据时有助于减少计算量并提取更高层次的特征。这个模块特别适用于三维卷积网络，例如视频处理或三维医学图像分析等应用。
+    """
     def __init__(self,
                  dim,
                  out_dim=None,
@@ -499,7 +504,6 @@ class PatchMerging3D(nn.Module):
             H += pad_h
             W += pad_w
             x = _generalize_padding(x, pad_t, pad_w, pad_h, padding_type=self.padding_type)
-
         x = x.reshape((B,
                        T // self.downsample[0], self.downsample[0],
                        H // self.downsample[1], self.downsample[1],
@@ -536,7 +540,7 @@ class InitialEncoder(nn.Module):
             if i == 0:
                 conv_block.append(nn.Conv2d(kernel_size=(3, 3), padding=(1, 1),
                                             in_channels=dim, out_channels=out_dim))
-                conv_block.append(nn.GroupNorm(16, out_dim))
+                conv_block.append(nn.GroupNorm(16, out_dim))  # 基于组的归一化, 适合于小批量数据的处理   超参数：16 将通道分为16组分别进行归一化
                 conv_block.append(get_activation(activation))
             else:
                 conv_block.append(nn.Conv2d(kernel_size=(3, 3), padding=(1, 1),
@@ -587,7 +591,7 @@ class InitialEncoder(nn.Module):
         if self.num_conv_layers > 0:
             x = x.reshape(B * T, H, W, C).permute(0, 3, 1, 2)
             x = self.conv_block(x).permute(0, 2, 3, 1)  # (B * T, H, W, C_new)
-            x = self.patch_merge(x.reshape(B, T, H, W, -1))
+            x = self.patch_merge(x.reshape(B, T, H, W, -1))  # downsample (B, T_new, H_new, W_new, C_new)
         else:
             x = self.patch_merge(x)
         return x
@@ -1310,6 +1314,7 @@ class StackCuboidSelfAttentionBlock(nn.Module):
             m.reset_parameters()
 
     def forward(self, x):
+        # False
         if self.use_inter_ffn:
             for idx, (attn, ffn) in enumerate(zip(self.attn_l, self.ffn_l)):
                 x = x + attn(x)
@@ -1538,7 +1543,7 @@ class CuboidTransformerEncoder(nn.Module):
 
         out = []
         for i in range(self.num_blocks):
-            x = self.blocks[i](x)
+            x = self.blocks[i](x)   # Attn + FFN + res
             out.append(x)
             if self.num_blocks > 1 and i < self.num_blocks - 1:
                 x = self.down_layers[i](x)
@@ -2318,6 +2323,7 @@ class CuboidTransformerDecoder(nn.Module):
                     x = self.hierarchical_pos_embed_l[i - 1](x)
         return x
 
+
 class FinalDecoder(nn.Module):
 
     def __init__(self,
@@ -2377,6 +2383,7 @@ class FinalDecoder(nn.Module):
             x = x.reshape(B * T, H, W, C).permute(0, 3, 1, 2)
             x = self.conv_block(x).permute(0, 2, 3, 1).reshape(B, T, H, W, -1)
         return x
+
 
 class TransformerModel(nn.Module):
     def __init__(self,
@@ -2443,20 +2450,66 @@ class TransformerModel(nn.Module):
                 ----------
                 x
                     Shape (B, T, H, W, C)
+                    torch.Size([1, 5, 108, 200, 12])
                 Returns
                 -------
                 out
                     The output Shape (B, T_out, H, W, C_out)
+                    torch.Size([1, 5, 108, 200, 36])
                 """
         B, _, _, _, _ = x.shape
         T_out = self.target_shape[0]
-        x = self.initial_encoder(x)
-        x = self.enc_pos_embed(x)
+        # print('begin: ', x.shape)
+        x = self.initial_encoder(x)  # 卷积层 + 下采样   (B, T_new, H_new, W_new, C_new)   torch.Size([1, 5, 54, 100, 64])
+        # print('after initial encoder: ', x.shape)
+        x = self.enc_pos_embed(x)  # 位置编码   torch.Size([1, 5, 54, 100, 64])
+        # print('after pos embed: ', x.shape)
         mem_l = self.encoder(x)
+        # print('after encoder: ', len(mem_l))
         initial_z = self.get_initial_z(final_mem=mem_l[-1],
                                        T_out=T_out)
         dec_out = self.decoder(initial_z, mem_l)
+        # print('after decoder: ', dec_out.shape)
         dec_out = self.final_decoder(dec_out)
+        # print('after final decoder: ', dec_out.shape)
         out = self.dec_final_proj(dec_out)
+        # print('out: ', out.shape)
         return out
+    
+    def train_one_step(self, x, y, mask, criterion, k):
+        '''
+        x:      [bs, seq, depth, lat, lon]
+        y:      [bs, seq, depth, lat, lon]
+        mask:   [1, lat, lon]
+        pred:   [bs, seq, lat, lon, depth]
 
+        return: loss
+        '''
+        # process data
+        info = {}
+        # print('x, y: ', x.shape, y.shape)
+        bs_1 = x.shape[0]
+        bs_2, seq, depth, lat, lon = y.shape
+        x = x.permute(0, 1, 3, 4, 2)  # (bs, seq, lat, lon, depth)
+        y = y[:, :, 0:k, ...].permute(0, 1, 3, 4, 2)
+        mask = mask.unsqueeze(0).unsqueeze(-1).repeat(bs_2 ,seq, 1, 1, k)  # (1, lat, lon) --> (bs, seq, depth, lat, lon)
+        y = y*mask
+        # print('x, y, mask: ', x.shape, y.shape, mask.shape)
+        
+        pred = self(x)  # (bs, seq, lat, lon, depth)
+        
+        # pred = pred.reshape(bs_2, seq, k, lat, lon)
+        pred = pred * mask
+        loss = criterion(pred, y)
+
+        return loss, pred, info
+
+# x, y, mask:  torch.Size([1, 5, 54, 100, 12]) torch.Size([1, 5, 54, 100, 36]) torch.Size([1, 5, 54, 100, 36])
+# tensor(0.4016, device='cuda:4', grad_fn=<MseLossBackward0>)
+# begin:  torch.Size([1, 5, 108, 200, 12])
+# after initial encoder:  torch.Size([1, 5, 54, 100, 64])
+# after pos embed:  torch.Size([1, 5, 54, 100, 64])
+# after encoder:  2
+# after decoder:  torch.Size([1, 5, 54, 100, 64])
+# after final decoder:  torch.Size([1, 5, 108, 200, 64])
+# out:  torch.Size([1, 5, 108, 200, 36])

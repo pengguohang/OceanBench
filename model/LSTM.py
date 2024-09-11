@@ -36,3 +36,43 @@ class LSTMModel(nn.Module):
         
         x = self.time_distributed(x)
         return x
+    
+    def train_one_step(self, x, y, mask, criterion, k):
+        '''
+        x:      [bs, seq, depth, lat, lon]
+        y:      [bs, seq, depth, lat, lon]
+        mask:   [1, lat, lon]
+        pred:   [bs, seq, n]
+
+        return: loss
+        '''
+        # process data
+        info = {}
+        # print('x, y: ', x.shape, y.shape)
+        bs_1 = x.shape[0]
+        bs_2, seq, depth, lat, lon = y.shape
+        x = x.reshape(bs_1, seq, -1)  # (bs, seq, n)
+        y = y[:, :, 0:k, ...]
+        mask = mask.unsqueeze(0).unsqueeze(0).repeat(bs_2 ,seq, k, 1, 1)  # (1, lat, lon) --> (bs, seq, depth, lat, lon)
+        y = y*mask
+        
+        pred = self(x)  # (bs, seq, n)
+        
+        pred = pred.reshape(bs_2, seq, k, lat, lon)
+        pred = pred * mask
+        loss = criterion(pred, y)
+
+        return loss, pred, info
+
+
+# LSTM输入数据：[batch_size, seq_len, input_size]
+    
+# LSTMModel(
+#   (dropout1): PermaDropout()
+#   (lstm1): LSTM(7, 35, batch_first=True)
+#   (dropout2): PermaDropout()
+#   (activation): Tanh()
+#   (lstm2): LSTM(35, 35, batch_first=True)
+#   (dropout3): PermaDropout()
+#   (time_distributed): Linear(in_features=35, out_features=3, bias=True)
+# )
