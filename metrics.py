@@ -2,6 +2,9 @@ import torch
 import os
 import pandas as pd
 
+import matplotlib.pyplot as plt
+import numpy as np
+
 def MSE(pred, target):
     """return mean square error
 
@@ -46,7 +49,9 @@ def NRMSE(pred, target):
     # nb, nc, ns = target_1.shape[0], target_1.shape[1], target_1.shape[2]
     # target_1 = target_1.reshape(nb, nc, ns, -1)
     # target_mean = torch.mean(target_1, dim=3)
+    print('in NRMSE: ', target.shape)
     target_mean = torch.mean(target, dim=-1)  # 掩码处为零值，导致res有nan
+    
     res = RMSE(pred, target) / target_mean
 
     return res # (batch_size, seq_len, depth)
@@ -94,6 +99,9 @@ def calculate_res(pred, target, metric_names):
         res_list[metric] = res
         
     return res_list
+
+
+
 
 # def res_all(pred, target, metric_names):
 #     """

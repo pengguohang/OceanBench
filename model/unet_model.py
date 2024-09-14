@@ -58,7 +58,7 @@ class UNet(nn.Module):
         self.up4 = torch.utils.checkpoint(self.up4)
         self.outc = torch.utils.checkpoint(self.outc)
 
-    def train_one_step(self, x, y, mask, criterion, k):
+    def train_one_step(self, x, y, mask, criterion, k, metric_names={}):
         '''
         x:      [bs, var, lat, lon]
         y:      [bs, depth, lat, lon]
@@ -75,9 +75,15 @@ class UNet(nn.Module):
         y = y*mask
         
         pred = self(x)  # (bs, )
-        
-        pred = pred * mask
-        loss = criterion(pred, y)
+
+        if metric_names:
+            pred = pred * mask
+            pred = pred.reshape(bs_2, k, -1).unsqueeze(1)
+            y = y.reshape(bs_2, k, -1).unsqueeze(1)
+            loss = criterion(pred, y, metric_names)
+        else:
+            pred = pred * mask
+            loss = criterion(pred, y)
 
         return loss, pred, info
 

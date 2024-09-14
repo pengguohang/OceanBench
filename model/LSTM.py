@@ -37,7 +37,7 @@ class LSTMModel(nn.Module):
         x = self.time_distributed(x)
         return x
     
-    def train_one_step(self, x, y, mask, criterion, k):
+    def train_one_step(self, x, y, mask, criterion, k, metric_names={}):
         '''
         x:      [bs, seq, depth, lat, lon]
         y:      [bs, seq, depth, lat, lon]
@@ -57,10 +57,17 @@ class LSTMModel(nn.Module):
         y = y*mask
         
         pred = self(x)  # (bs, seq, n)
-        
-        pred = pred.reshape(bs_2, seq, k, lat, lon)
-        pred = pred * mask
-        loss = criterion(pred, y)
+
+        if metric_names:
+            pred = pred.reshape(bs_2, seq, k, lat, lon)
+            pred = pred * mask
+            pred = pred.reshape(bs_2, seq, k, -1)
+            y = y.reshape(bs_2, seq, k, -1)
+            loss = criterion(pred, y, metric_names)
+        else:        
+            pred = pred.reshape(bs_2, seq, k, lat, lon)
+            pred = pred * mask
+            loss = criterion(pred, y)
 
         return loss, pred, info
 

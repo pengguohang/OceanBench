@@ -2476,7 +2476,7 @@ class TransformerModel(nn.Module):
         # print('out: ', out.shape)
         return out
     
-    def train_one_step(self, x, y, mask, criterion, k):
+    def train_one_step(self, x, y, mask, criterion, k, metric_names={}):
         '''
         x:      [bs, seq, depth, lat, lon]
         y:      [bs, seq, depth, lat, lon]
@@ -2492,15 +2492,21 @@ class TransformerModel(nn.Module):
         bs_2, seq, depth, lat, lon = y.shape
         x = x.permute(0, 1, 3, 4, 2)  # (bs, seq, lat, lon, depth)
         y = y[:, :, 0:k, ...].permute(0, 1, 3, 4, 2)
-        mask = mask.unsqueeze(0).unsqueeze(-1).repeat(bs_2 ,seq, 1, 1, k)  # (1, lat, lon) --> (bs, seq, depth, lat, lon)
+        mask = mask.unsqueeze(0).unsqueeze(-1).repeat(bs_2 ,seq, 1, 1, k)  # (1, lat, lon) --> (bs, seq, lat, lon, depth)
         y = y*mask
         # print('x, y, mask: ', x.shape, y.shape, mask.shape)
         
         pred = self(x)  # (bs, seq, lat, lon, depth)
-        
-        # pred = pred.reshape(bs_2, seq, k, lat, lon)
-        pred = pred * mask
-        loss = criterion(pred, y)
+
+        if metric_names:
+            pred = pred * mask
+            pred = pred.permute(0, 1, 4, 2, 3).reshape(bs_2, seq, k, -1)
+            y = y.permute(0, 1, 4, 2, 3).reshape(bs_2, seq, k, -1)
+            loss = criterion(pred, y, metric_names)
+        else:
+            # pred = pred.reshape(bs_2, seq, k, lat, lon)
+            pred = pred * mask
+            loss = criterion(pred, y)
 
         return loss, pred, info
 

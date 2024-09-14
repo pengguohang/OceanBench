@@ -26,7 +26,7 @@ class FFNN(nn.Module):
         x = self.fc3(x)
         return x
         
-    def train_one_step(self, x, y, mask, criterion, k):
+    def train_one_step(self, x, y, mask, criterion, k, metric_names={}):
         '''
         x:      [bs, var, lat, lon]
         y:      [bs, depth, lat, lon]
@@ -46,8 +46,17 @@ class FFNN(nn.Module):
         
         pred = self(x)  # (bs, n)
         
-        pred = pred.reshape(bs_2, k, lat, lon)
-        pred = pred * mask
-        loss = criterion(pred, y)
+        if metric_names:
+            pred = pred.reshape(bs_2, k, lat, lon)
+            pred = pred * mask
+            pred = pred.reshape(bs_2, k, -1).unsqueeze(1)
+            
+            y = y.reshape(bs_2, k, -1).unsqueeze(1)
+            # print('pred, y: ', pred.shape, y.shape)
+            loss = criterion(pred, y, metric_names)
+        else:
+            pred = pred.reshape(bs_2, k, lat, lon)
+            pred = pred * mask
+            loss = criterion(pred, y)
 
         return loss, pred, info

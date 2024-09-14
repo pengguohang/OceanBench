@@ -23,8 +23,10 @@ class STDataset(Dataset):
                  add_time = False,
                  if_train = True,
                  seq_len = 0,
+                 get_201809 = False,
                  ):
         '''
+        提取201001-201901的每月数据
         Args:
             region_name(str) : 提取的数据范围(Gulf )
             folder_path(str) : 存放所有数据的文件夹 , "/home/data2/pengguohang/My_Ocean/challenge"
@@ -99,7 +101,7 @@ class STDataset(Dataset):
         self.label = torch.where(torch.isnan(self.label), torch.full_like(self.label, 0), self.label)
 
         # 总数据：0:109, 代表201001-201901
-        # 数据划分为train:201001-201806 test:201807-201901
+        # 数据划分为train:201001-201803 test:201804-201901
         # 从train中随机拿出10个月份的数据作为验证集
         train_len = self.input.shape[0] - test_len
         # print(train_len, test_len)
@@ -110,6 +112,7 @@ class STDataset(Dataset):
             self.input = self.input[train_len:, ...]
             self.label = self.label[train_len:, ...]
         
+
         
         print('shape of variable: ', self.input.shape, self.label.shape, self.lat.shape, self.lon.shape, self.depth.shape)
 
