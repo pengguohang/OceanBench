@@ -1,0 +1,47 @@
+challenge_name: T
+if_training: True
+continue_training: False
+model_path: null
+saved_dir: "/home/data2/pengguohang/My_Ocean/challenge/checkpoint/new_data"
+output_dir: "./output/"
+save_period: 10
+plot_interval: 1
+device: "cuda:6"
+# 训练相关参数
+seed: 0
+epochs: 50
+pat: 30
+
+dataset:
+  region_name: 'Gulf'
+  folder_path: /home/data2/pengguohang/My_Ocean/challenge/1993_2019_data/
+  label_path: /home/data2/pengguohang/My_Ocean/challenge/1993_2019_data/label.nc
+  norm: True  
+  seq_len: 0
+
+dataloader:
+  train_bs: 5
+  val_bs: 1
+  test_bs: 1
+  num_workers: 0
+  pin_memory: False
+
+model:
+  model_name: UNET
+  in_dim: 10  # n_channels
+  out_dim: 15  # n_classes, depth
+  noise: 0.0
+  xavier_init: 0.01
+  last_activation: True
+  dropout: 0.0  
+  debug: False
+
+optimizer:
+  name: 'Adam'
+  lr: 1.e-3
+  weight_decay: 1.e-4
+
+scheduler:
+  name: "StepLR"
+  step_size: 20
+  gamma: 0.9

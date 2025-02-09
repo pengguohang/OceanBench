@@ -1,0 +1,52 @@
+challenge_name: S
+if_training: True
+continue_training: False
+model_path: null
+saved_dir: "/home/data2/pengguohang/My_Ocean/challenge/checkpoint/new_data"
+output_dir: "./output/"
+save_period: 5
+plot_interval: 1
+device: "cuda:6"
+# 训练相关参数
+seed: 0
+epochs: 50
+pat: 30
+
+dataset:
+  region_name: 'Gulf'
+  folder_path: /home/data2/pengguohang/My_Ocean/challenge/1993_2019_data/
+  label_path: /home/data2/pengguohang/My_Ocean/challenge/1993_2019_data/label.nc
+  norm: True  
+  seq_len: 0
+
+dataloader:
+  train_bs: 1000
+  val_bs: 500
+  test_bs: 500
+  num_workers: 0
+  pin_memory: False
+
+model:
+  model_name: MLPE
+  in_dim: 54000  # 由embedding决定
+  out_dim: 15  
+  num_layers: 1
+  rnn_hidden_size: 5
+  encoder_input_size: 64  # 固定，由embedding决定
+  encoder_hidden_size: 512
+  activ: Sigmoid
+  noise: 0.0
+  xavier_init: 0.01
+  last_activation: True
+  dropout_fraction: .2 
+  debug: False
+
+optimizer:
+  name: 'Adam'
+  lr: 1.e-3
+  weight_decay: 1.e-4
+
+scheduler:
+  name: "StepLR"
+  step_size: 20
+  gamma: 0.9
