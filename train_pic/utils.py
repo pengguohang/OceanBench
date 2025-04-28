@@ -310,7 +310,7 @@ def train_model(model, train_loader, validate_loader, criterion, device, args):
     print("avg_time : {0:.5f}".format(avg_time))
 
 
-def test_model(model, test_loader, device, args, metric_names=['MSE', 'RMSE', 'MaxError','NRMSE', 'R2']):
+def test_model(model, test_loader, minmax, device, args, metric_names=['MSE', 'RMSE', 'MaxError','NRMSE', 'R2']):
     '''
     test model
 
@@ -340,9 +340,9 @@ def test_model(model, test_loader, device, args, metric_names=['MSE', 'RMSE', 'M
     t1 = default_timer()  # start time
 
     with torch.no_grad():
-        for inputs, targets, mask, lat, _ in test_loader:
-            inputs, targets, mask, lat = inputs.to(device) , targets.to(device), mask.to(device), lat.to(device)
-            res, pred, info = model.train_one_step(inputs, targets, mask, lat, calculate_res, k, metric_names)
+        for inputs, targets, mask in test_loader:
+            inputs, targets, mask = inputs.to(device) , targets.to(device), mask.to(device)
+            res, pred, info = model.train_one_step(inputs, targets, mask, minmax, calculate_res, metric_names)
             # print(res)
             preds.append(pred)
 
@@ -401,7 +401,7 @@ def test_model(model, test_loader, device, args, metric_names=['MSE', 'RMSE', 'M
             writer.writerow([model_name, name, average_value, depth_values.tolist(), inference_time])
 
 
-    return preds, res_list_all
+    return preds, res_list_depth
 
 
 def plot_depth(pred_unet, pred_earthformer, pred_earthformer_new, pred_earthformer_kan, target, lat, lon):

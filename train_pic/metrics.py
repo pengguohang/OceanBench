@@ -19,7 +19,7 @@ def MSE(pred, target, valid_count):
     # bs, seq, depth = pred.shape[0], pred.shape[1], pred.shape[2]
     # errors = pred.reshape([nb, nc, ns, -1]) - target.reshape([nb, nc, ns, -1]) # (batch_size, depth, seq_le * lat * lon)
     errors = pred - target
-    print(pred.shape, valid_count.shape, errors.shape)
+    # print(pred.shape, valid_count.shape, errors.shape)
     res = torch.sum(errors**2, dim=-1) / valid_count
     return res # (bs, seq_len, depth)
 

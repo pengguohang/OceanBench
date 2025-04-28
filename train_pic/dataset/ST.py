@@ -54,8 +54,6 @@ class STDataset(Dataset):
         jd2 = torch.sin( torch.tensor(2*np.pi*(time_series/12)+1) )
         jd1 = jd1.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).repeat(1, 1, lat, lon)
         jd2 = jd2.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).repeat(1, 1, lat, lon)
-        # print('add time: ', self.input.shape, jd1.shape)
-        # print('jd1, jd2', jd1.shape, jd2.shape)
         self.input = torch.cat((self.input, jd1), dim=1)
         self.input = torch.cat((self.input, jd2), dim=1)
 

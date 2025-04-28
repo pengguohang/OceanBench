@@ -124,10 +124,10 @@ def test_model(model, test_loader, minmax, device, args, metric_names=['MSE', 'R
     t1 = default_timer()  # start time
 
     with torch.no_grad():
-        for inputs, targets, mask, lat, _ in test_loader:
-            inputs, targets, mask, lat = inputs.to(device) , targets.to(device), mask.to(device), lat.to(device)
+        for inputs, targets, mask in test_loader:
+            inputs, targets, mask = inputs.to(device) , targets.to(device), mask.to(device)
             res, pred, info = model.train_one_step(inputs, targets, mask, minmax, calculate_res, metric_names)
-            # print(res)
+            # print(res)inputs, targets, mask, minmax, criterion
             preds.append(pred)
 
             for name in metric_names:
